@@ -1,0 +1,312 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --bg: #17151a;
+  --bg-panel: #242129;
+  --text: #b7a38b;
+  --text-dim: #8c7d68;
+  --amber: #d99a3d;
+  --amber-bright: #e5aa4d;
+  --green: #a5b892;
+  --danger: #c1443c;
+  --border: rgba(165, 184, 146, 0.35);
+  --glow-amber: rgba(217, 154, 61, 0.45);
+  --font-display: "Oxanium", sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+}
+
+/* ---------- Terminal window chrome (pure CSS, no HTML changes needed) ---------- */
+html {
+  background: var(--bg);
+}
+
+html::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  background: #100f13;
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  background-image:
+    radial-gradient(circle 5px at 20px 17px, var(--danger) 98%, transparent 100%),
+    radial-gradient(circle 5px at 40px 17px, var(--amber) 98%, transparent 100%),
+    radial-gradient(circle 5px at 60px 17px, var(--green) 98%, transparent 100%);
+}
+
+html::after {
+  content: "cmapss@turbofan-rul: ~$ ./run_eval.sh";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  line-height: 34px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  z-index: 101;
+  pointer-events: none;
+}
+
+/* ---------- Base ---------- */
+body {
+  font-family: var(--font-mono);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 50px 1.5rem 2rem;
+  color: var(--text);
+  background-color: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Subtle CRT scanline + edge vignette. Kept faint and non-interactive so
+   it never interferes with reading content or clicking controls. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  text-shadow: 0 0 10px var(--glow-amber);
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--green);
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+h2::before {
+  content: "// ";
+  color: var(--text-dim);
+}
+
+/* ---------- Controls ---------- */
+.controls {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+
+select,
+input[type="text"] {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--amber-bright);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0.4rem 0.6rem;
+  caret-color: var(--amber);
+}
+
+select:focus,
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 6px var(--glow-amber);
+}
+
+/* Model selection */
+fieldset {
+  border: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+}
+
+legend {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 0 0.4rem;
+}
+
+fieldset label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: 1rem;
+  margin-bottom: 0;
+  cursor: pointer;
+  text-transform: none;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* Bracket-style checkbox: [ ] / [x] -- literal ASCII toggle instead of a
+   checkmark-in-a-box, reads much more like a terminal UI element. */
+fieldset input[type="checkbox"] {
+  appearance: none;
+  width: 1.6em;
+  height: 1.2em;
+  margin: 0;
+  background: transparent;
+  color: var(--green);
+  cursor: pointer;
+  position: relative;
+}
+
+fieldset input[type="checkbox"]::before {
+  content: "[ ]";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+fieldset input[type="checkbox"]:checked::before {
+  content: "[x]";
+  color: var(--amber-bright);
+  text-shadow: 0 0 6px var(--glow-amber);
+}
+
+/* ---------- Button ---------- */
+button {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--amber-bright);
+  background-color: transparent;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  border: 1px solid var(--amber);
+  border-radius: 0;
+  transition: all 0.15s ease;
+}
+
+button::before {
+  content: "> ";
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--amber);
+  color: var(--bg);
+  box-shadow: 0 0 14px var(--glow-amber);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Status line ---------- */
+#status {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  min-height: 1.2em;
+}
+
+#status:not(:empty)::before {
+  content: "$ ";
+  color: var(--green);
+}
+
+#status:not(:empty)::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--amber);
+  vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* ---------- Tables ---------- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+th {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  color: var(--green);
+  background: rgba(165, 184, 146, 0.08);
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: right;
+}
+
+th:first-child, td:first-child,
+th:nth-child(2), td:nth-child(2) {
+  text-align: left;
+}
+
+tbody tr:hover {
+  background: rgba(165, 184, 146, 0.06);
+}
+
+/* Rows where predicted RUL > actual RUL -- flagged because overestimating
+   remaining life is the more dangerous failure mode (delays maintenance),
+   consistent with the NASA score's asymmetric penalty. */
+tr.overestimated {
+  background-color: rgba(193, 68, 60, 0.18);
+  border-left: 3px solid var(--danger);
+}
+
+tr.overestimated:hover {
+  background-color: rgba(193, 68, 60, 0.28);
+}

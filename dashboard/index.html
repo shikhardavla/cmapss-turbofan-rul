@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RUL Model Comparison</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>Turbofan RUL — Model Comparison</h1>
+
+  <div class="controls">
+    <label>
+      Dataset
+      <select id="dataset">
+        <option value="FD001">FD001</option>
+        <option value="FD002">FD002</option>
+        <option value="FD003">FD003</option>
+        <option value="FD004">FD004</option>
+      </select>
+    </label>
+
+    <fieldset>
+      <legend>Models</legend>
+      <label><input type="checkbox" value="lstm" checked> LSTM</label>
+      <label><input type="checkbox" value="tcn" checked> TCN</label>
+      <label><input type="checkbox" value="transformer" checked> Transformer</label>
+    </fieldset>
+
+    <label>
+      API URL
+      <input type="text" id="apiUrl" value="http://localhost:8000">
+    </label>
+
+    <button id="runBtn">Run Evaluation</button>
+  </div>
+
+  <p id="status"></p>
+
+  <h2>Summary</h2>
+  <table id="summaryTable">
+    <thead>
+      <tr><th>Model</th><th>N</th><th>RMSE</th><th>MAE</th><th>NASA Score</th><th>RUL Overestimates</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Per-Unit Detail</h2>
+  <table id="detailTable">
+    <thead>
+      <tr><th>Unit</th><th>Model</th><th>Predicted RUL</th><th>Actual RUL</th><th>Abs Error</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="script.js"></script>
+</body>
+</html>
