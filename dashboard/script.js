@@ -3,6 +3,19 @@ const statusEl = document.getElementById("status");
 const summaryBody = document.querySelector("#summaryTable tbody");
 const detailBody = document.querySelector("#detailTable tbody");
 
+const policyToggle = document.getElementById("policyToggle");
+const policyControls = document.getElementById("policyControls");
+const safetyFactorInput = document.getElementById("safetyFactor");
+const safetyFactorValue = document.getElementById("safetyFactorValue");
+const criticalThresholdInput = document.getElementById("criticalThreshold");
+const criticalThresholdValue = document.getElementById("criticalThresholdValue");
+const policyColHeader = document.getElementById("policyColHeader");
+
+// Cache of the last successful "Run Evaluation" click. Policy toggle/sliders
+// recompute and re-render from this instantly -- no new API calls -- so the
+// effect of safety factor / threshold changes is visible live.
+let lastRun = null; // { dataset, records: [{ unit, model, actual, predicted }] }
+
 // Mirrors evaluate.py's nasa_score exactly: asymmetric exponential penalty,
 // summed (not averaged) -- late predictions penalized more steeply.
 function nasaScore(actualArr, predictedArr) {
@@ -46,26 +59,49 @@ async function predictOne(apiUrl, dataset, model, unit) {
   return data.predicted_rul;
 }
 
+function getPolicyState() {
+  return {
+    enabled: policyToggle.checked,
+    safetyFactor: parseFloat(safetyFactorInput.value),
+    criticalThreshold: parseFloat(criticalThresholdInput.value),
+  };
+}
+
+// The core policy transform: adjusted RUL = predicted RUL / safety factor.
+// When policy is off, the raw model prediction passes through unchanged.
+function adjustedRul(predicted, policy) {
+  return policy.enabled ? predicted / policy.safetyFactor : predicted;
+}
+
 function clearResults() {
   summaryBody.innerHTML = "";
   detailBody.innerHTML = "";
 }
 
-function renderDetailRow(unit, model, predicted, actual) {
+function renderDetailRow(unit, model, displayedPredicted, actual, policyEnabled, unitIsCritical) {
   const row = document.createElement("tr");
-  const overestimated = predicted > actual; // An important flag: 
+  const overestimated = displayedPredicted > actual; // An important flag:
   // Overestimating RUL can be safety-critical because it may delay maintenance.
 
   if (overestimated) {
     row.classList.add("overestimated");
   }
-  row.innerHTML = `
+
+  let rowHtml = `
     <td>${unit}</td>
     <td>${model}</td>
-    <td>${predicted.toFixed(2)}</td>
+    <td>${displayedPredicted.toFixed(2)}</td>
     <td>${actual}</td>
-    <td>${Math.abs(predicted - actual).toFixed(2)}</td>
+    <td>${Math.abs(displayedPredicted - actual).toFixed(2)}</td>
   `;
+
+  if (policyEnabled) {
+    rowHtml += unitIsCritical
+      ? `<td class="policy-col"><span class="status-dot critical"></span>Maintenance Critical</td>`
+      : `<td class="policy-col"><span class="status-dot healthy"></span>Engine Healthy</td>`;
+  }
+
+  row.innerHTML = rowHtml;
   detailBody.appendChild(row);
 }
 
@@ -82,10 +118,77 @@ function renderSummaryRow(model, n, rmseVal, maeVal, nasaVal, overestimated) {
   summaryBody.appendChild(row);
 }
 
+// Recomputes and re-renders both tables from the cached last run, applying
+// the current policy state (toggle + sliders). Called after a fresh
+// evaluation completes, and again every time the toggle or sliders change --
+// no API calls happen here, it's pure client-side recomputation.
+function renderAll() {
+  if (!lastRun) return;
+
+  const policy = getPolicyState();
+  policyColHeader.style.display = policy.enabled ? "" : "none";
+  clearResults();
+
+  const displayed = lastRun.records.map((r) => ({
+    unit: r.unit,
+    model: r.model,
+    actual: r.actual,
+    displayedPredicted: adjustedRul(r.predicted, policy),
+  }));
+
+  // Per-engine worst-case policy status: if ANY active model's adjusted RUL
+  // for that unit is at or below the critical threshold, the whole engine
+  // is flagged critical -- matches "any of the active models" precedence.
+  const unitCritical = {};
+  if (policy.enabled) {
+    displayed.forEach((r) => {
+      if (r.displayedPredicted <= policy.criticalThreshold) {
+        unitCritical[r.unit] = true;
+      }
+    });
+  }
+
+  displayed.forEach((r) => {
+    renderDetailRow(
+      r.unit,
+      r.model,
+      r.displayedPredicted,
+      r.actual,
+      policy.enabled,
+      !!unitCritical[r.unit]
+    );
+  });
+
+  // Group by model for the summary table -- RMSE/MAE/NASA Score/overestimate
+  // count are all computed from the (possibly safety-factor-adjusted)
+  // displayed values, so moving the slider visibly moves these numbers.
+  const byModel = {};
+  displayed.forEach((r) => {
+    if (!byModel[r.model]) {
+      byModel[r.model] = { actual: [], predicted: [], overestimated: 0 };
+    }
+    byModel[r.model].actual.push(r.actual);
+    byModel[r.model].predicted.push(r.displayedPredicted);
+    if (r.displayedPredicted > r.actual) byModel[r.model].overestimated++;
+  });
+
+  Object.keys(byModel).forEach((model) => {
+    const { actual, predicted, overestimated } = byModel[model];
+    renderSummaryRow(
+      model,
+      actual.length,
+      rmse(actual, predicted),
+      mae(actual, predicted),
+      nasaScore(actual, predicted),
+      overestimated
+    );
+  });
+}
+
 runBtn.addEventListener("click", async () => {
   const dataset = document.getElementById("dataset").value;
   const apiUrl = document.getElementById("apiUrl").value.replace(/\/$/, "");
-  const models = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+  const models = Array.from(document.querySelectorAll(".model-checkbox:checked"))
     .map((cb) => cb.value);
 
   if (models.length === 0) {
@@ -111,9 +214,7 @@ runBtn.addEventListener("click", async () => {
   // Sequential requests, not Promise.all -- a full dataset x 3 models can be
   // hundreds of requests; sequential keeps this simple and avoids hammering
   // a locally-running dev server. Slower, but predictable.
-  const predictions = {};   // model -> { actual: [], predicted: [] }
-  models.forEach((m) => (predictions[m] = { actual: [], predicted: [], overestimated: 0 }));
-
+  const records = [];
   let done = 0;
   const total = testData.units.length * models.length;
 
@@ -121,12 +222,7 @@ runBtn.addEventListener("click", async () => {
     for (const model of models) {
       try {
         const predicted = await predictOne(apiUrl, dataset, model, unit);
-        predictions[model].actual.push(unit.true_rul);
-        predictions[model].predicted.push(predicted);
-        if (predicted > unit.true_rul) {
-            predictions[model].overestimated++;
-        }
-        renderDetailRow(unit.unit, model, predicted, unit.true_rul);
+        records.push({ unit: unit.unit, model, actual: unit.true_rul, predicted });
       } catch (e) {
         console.error(`Unit ${unit.unit}, model ${model}:`, e.message);
       }
@@ -135,19 +231,24 @@ runBtn.addEventListener("click", async () => {
     }
   }
 
-  models.forEach((model) => {
-    const { actual, predicted, overestimated } = predictions[model];
-    if (actual.length === 0) return;
-    renderSummaryRow(
-      model,
-      actual.length,
-      rmse(actual, predicted),
-      mae(actual, predicted),
-      nasaScore(actual, predicted),
-      overestimated
-    );
-  });
+  lastRun = { dataset, records };
+  renderAll();
 
   statusEl.textContent = `Done. Evaluated ${testData.units.length} units across ${models.length} model(s).`;
   runBtn.disabled = false;
+});
+
+policyToggle.addEventListener("change", () => {
+  policyControls.disabled = !policyToggle.checked;
+  renderAll();
+});
+
+safetyFactorInput.addEventListener("input", () => {
+  safetyFactorValue.textContent = parseFloat(safetyFactorInput.value).toFixed(1);
+  renderAll();
+});
+
+criticalThresholdInput.addEventListener("input", () => {
+  criticalThresholdValue.textContent = criticalThresholdInput.value;
+  renderAll();
 });

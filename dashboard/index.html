@@ -22,18 +22,47 @@
 
     <fieldset>
       <legend>Models</legend>
-      <label><input type="checkbox" value="lstm" checked> LSTM</label>
-      <label><input type="checkbox" value="tcn" checked> TCN</label>
-      <label><input type="checkbox" value="transformer" checked> Transformer</label>
+      <label><input type="checkbox" class="bracket-checkbox model-checkbox" value="lstm" checked> LSTM</label>
+      <label><input type="checkbox" class="bracket-checkbox model-checkbox" value="tcn" checked> TCN</label>
+      <label><input type="checkbox" class="bracket-checkbox model-checkbox" value="transformer" checked> Transformer</label>
     </fieldset>
 
     <label>
       API URL
       <input type="text" id="apiUrl" value="http://localhost:8000">
     </label>
-
-    <button id="runBtn">Run Evaluation</button>
   </div>
+
+  <div class="policy-panel">
+    <label class="policy-toggle-label">
+      <input type="checkbox" id="policyToggle" class="bracket-checkbox">
+      Enable Policy Simulation
+    </label>
+
+    <fieldset id="policyControls" disabled>
+      <legend>Policy Parameters</legend>
+
+      <div class="slider-row">
+        <label for="safetyFactor">
+          Safety Factor
+          <span class="slider-value" id="safetyFactorValue">1.0</span>x
+        </label>
+        <input type="range" id="safetyFactor" min="1" max="3" step="0.1" value="1">
+      </div>
+
+      <div class="slider-row">
+        <label for="criticalThreshold">
+          Critical Threshold
+          <span class="slider-value" id="criticalThresholdValue">0</span> RUL
+        </label>
+        <input type="range" id="criticalThreshold" min="0" max="20" step="1" value="0">
+      </div>
+
+      <p class="policy-disclaimer">Illustrative policy simulation — not a validated maintenance or safety standard.</p>
+    </fieldset>
+  </div>
+
+  <button id="runBtn">Run Evaluation</button>
 
   <p id="status"></p>
 
@@ -48,7 +77,14 @@
   <h2>Per-Unit Detail</h2>
   <table id="detailTable">
     <thead>
-      <tr><th>Unit</th><th>Model</th><th>Predicted RUL</th><th>Actual RUL</th><th>Abs Error</th></tr>
+      <tr>
+        <th>Unit</th>
+        <th>Model</th>
+        <th>Predicted RUL</th>
+        <th>Actual RUL</th>
+        <th>Abs Error</th>
+        <th id="policyColHeader" class="policy-col" style="display:none;">Policy Recommendation</th>
+      </tr>
     </thead>
     <tbody></tbody>
   </table>

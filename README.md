@@ -1,15 +1,43 @@
-# Turbofan Engine RUL Prediction
+# Aircraft Turbofan Engine Health Prediction
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikit-learn&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?logo=git&logoColor=white)
 
-This project is an end-to-end machine learning system for predicting the Remaining Useful Life (RUL) of aircraft turbofan engines using NASA's C-MAPSS turbofan engine degradation simulation datasets. NASA C-MAPSS is a recognized, research grade simulated dataset within aviation research. This project's focus is less on beating an RMSE leaderboard, but more on the surrounding engineering: a robust train/test discipline, a functional deployment layer, and an evaluation system that incorporates the asymmetric cost function associated with predictions on either side of the ground truth. Additionally, this project explores the use of baseline predictions and metrics towards informing a **mock**, engine maintenance policy system, highlighting the immense potential practical utility of an ML system towards aerospace and mechanical applications.
+This project is an end-to-end machine learning system for predicting the Remaining Useful Life (RUL) of aircraft turbofan engines using NASA's C-MAPSS turbofan engine degradation simulation datasets.
+
+
+### Project Highlights
+
+* **4 datasets:** FD001–FD004
+* **4 modeling approaches:** Random Forest, LSTM, TCN, Transformer
+* **Two feature representations:** engineered tabular + sequential tensors
+* **Evaluation:** RMSE, MAE, R², NASA Score
+* **Deployment:** FastAPI + Pydantic + Docker
+* **Interactive dashboard:** HTML/CSS/JavaScript
+* **Policy simulation:** configurable safety factor and critical threshold
+
+There are a few reasons why this dataset makes for a compelling end-to-end ML system:
+
+* The underlying degradation process is complex and partially observed: the datasets combine multiple operating regimes and degradation modes, requiring careful preprocessing and feature engineering and providing an opportunity to use unsupervised learning, including K-means clustering, as part of feature preprocessing.
+
+* Being a transient problem, it lends itself well to classical ML and neural network architectures. This project compares four modeling approaches: tree-based ensemble learning with Random Forest, recurrent sequence modeling with an LSTM, temporal convolution with a TCN, and self-attention with a Transformer.
+
+* It encapsulates a complex physical phenomenon in aircraft engine degradation, but its underlying motif is intuitive: almost anyone who is familiar with an airplane can grasp the importance of predicting when its engines might fail. This allows exploration into prediction interpretation and its potential application.
+
+The project's focus is not solely on minimizing benchmark error, but on building the surrounding engineering system: disciplined train/test separation, multiple modeling approaches, reproducible inference, deployment through an API, and an evaluation layer that accounts for the asymmetric cost of RUL prediction errors. Additionally, this project explores the use of baseline predictions and metrics towards informing a **mock** engine maintenance policy system, highlighting the potential practical utility of an ML system towards aerospace and mechanical applications.
 
 ## Table of Contents
 
-* [Live Demo / Quickstart](#quickstart)
+* [Live Demo / Quickstart](#live-demo--quickstart)
 * [Introduction — Why Does This Matter?](#introduction--why-does-this-matter)
 * [System Architecture](#system-architecture)
 * [Models](#models)
 * [Results](#results)
-* [Interpretation — What Do the Results Mean?](#interpretation--what-do-the-results-mean)
+* [Discussion](#discussion)
 * [API Reference](#api-reference)
 * [Limitations & Future Work](#limitations--future-work)
 * [Dataset Attribution](#dataset-attribution)
@@ -18,58 +46,84 @@ This project is an end-to-end machine learning system for predicting the Remaini
 
 ## Live Demo / Quickstart
 
+![C-MAPSS RUL Dashboard](dashboard/dashboard.gif)
+
 ### Run Project Locally
 
 Clone the repository:
+
 ```bash
 git clone YOUR-REPOSITORY-URL
+
 cd <repo-folder-name>
 ```
 
 Install the required Python dependencies (full pipeline, including PyTorch — see note below):
+
 ```bash
 pip install -r requirements.txt
 ```
 
-> **Note on dependencies:** the root `requirements.txt` covers everything needed to run the full pipeline locally (data loading, feature engineering, all four models, the API). `api/requirements.txt` is a separate, smaller list used only for building the Docker image, which installs a CPU-only PyTorch wheel seperately when running the API. 
+> **Note on dependencies:** the root `requirements.txt` covers everything needed to run the full pipeline locally (data loading, feature engineering, all four models, the API). `api/requirements.txt` is a separate, smaller list used only for building the Docker image, which installs a CPU-only PyTorch wheel separately when running the API.
 
 Download the raw NASA C-MAPSS dataset (not included in this repository — see [Dataset Attribution](#dataset-attribution) for the official citation) and place the four experiment files for each subset under `data/raw/`, matching the filenames `loader.py` expects:
 
+```text
 data/raw/
 ├── train_FD001.txt test_FD001.txt RUL_FD001.txt
 ├── train_FD002.txt test_FD002.txt RUL_FD002.txt
 ├── train_FD003.txt test_FD003.txt RUL_FD003.txt
 └── train_FD004.txt test_FD004.txt RUL_FD004.txt
+```
 
 > Official NASA hosting for this dataset has moved over the years and availability can vary; if the citation link is unreachable, search "NASA C-MAPSS Turbofan Jet Engine Data Set" — it's also mirrored on Kaggle and other academic dataset repositories under the same file names.
 
 Create the model artifacts:
+
+* Train and save configured models
+
 ```bash
 python train.py
+```
+
+* Evaluate the trained models on the C-MAPSS test sets and report RMSE, MAE, R², and NASA Score
+
+```bash
 python evaluate.py
 ```
+
 Start the FastAPI service:
+
 ```bash
 python -m uvicorn api.app:app --reload
 ```
+
 The API will be available at:
 
+```text
 http://localhost:8000/
+```
 
 Serve the dashboard locally (opening `index.html` directly via `file://` will not work — the dashboard's data fetches require a real HTTP origin):
+
 ```bash
 cd dashboard
+
 python -m http.server 5500
 ```
+
 Then open `http://localhost:5500` and point the "API URL" field at `http://localhost:8000`.
 
 > **Note:** The trained model artifacts and raw C-MAPSS datasets are not included in the repository. The repository contains the source code and dashboard data (`dashboard/data/*.json`) required to reproduce and explore the project.
 
-### Live Dashboard Coming Soon!
+The dashboard currently serves the three sequential models—LSTM, TCN, and Transformer—through the `/predict` endpoint. Random Forest is evaluated offline because it uses a separate tabular feature pipeline.
+
+### Live Demo - Coming Soon.
+A live, deployed version of the dashboard connected to a hosted API on Render is planned. Check back shortly.
 
 ## Introduction — Why Does This Matter?
 
-Aircraft turbofan engines operate under demanding conditions and gradually degrade over time. Accurately anticipating this degradation can enable condition-based maintenance (i.e., how do the operational settings and environment affect planed maintenance). Thi helps reduce unexpected failures, unnecessary maintenance, operational downtime, and in rarer cases, mid-operation engine failure, which can be catastrophic. 
+Aircraft turbofan engines operate under demanding conditions and gradually degrade over time. Accurately anticipating this degradation can enable condition-based maintenance (i.e., how do the operational settings and environment affect planned maintenance). This helps reduce unexpected failures, unnecessary maintenance, operational downtime, and, in rarer cases, mid-operation engine failure, which can be catastrophic.
 
 One approach is to predict the **Remaining Useful Life (RUL)** of an engine throughout its operation. RUL represents the estimated number of operational cycles remaining before an engine reaches its defined end-of-life condition. More accurate RUL estimates can help inform maintenance planning and provide an indication of an engine's remaining operational life.
 
@@ -83,39 +137,41 @@ This system compares four machine-learning approaches — **Random Forest, Long 
 
 ```text
                     NASA C-MAPSS Dataset
+
                              │
                              ▼
+
                     Data Loading / Cleaning
-                           Pandas
+                            Pandas
                              │
                              ▼
-                     Feature Engineering
-                   Pandas / Scikit-Learn
+                       Feature Engineering
+                       Pandas / Scikit-Learn
                              │
                   ┌──────────┴──────────┐
                   │                     │
                   ▼                     ▼
-           Tabular Pipeline       Sequential Pipeline
+          Tabular Pipeline       Sequential Pipeline
                   │                     │
                   ▼                     ▼
-          Random Forest          LSTM / TCN / Transformer
-           Scikit-Learn                  PyTorch
+             Random Forest       LSTM / TCN / Transformer
+             Scikit-Learn              PyTorch
                   │                     │
                   └──────────┬──────────┘
                              ▼
-                       Model Evaluation
-                    RMSE / MAE / R² / NASA Score
+                      Model Evaluation
+                  RMSE / MAE / R² / NASA Score
                              │
                              ▼
                     Trained Model Artifacts
-                        Joblib / PyTorch
+                       Joblib / PyTorch
                              │
                              ▼
                        FastAPI /predict
                     FastAPI / Pydantic / Docker
                              │
                              ▼
-                    Interactive Dashboard
+                     Interactive Dashboard
                        HTML / CSS / JavaScript
 ```
 
@@ -176,19 +232,20 @@ The neural-network models use **3D sequential tensors**, where each sample conta
 
 ```text
 Raw C-MAPSS Data
+
        │
        ▼
    loader.py
        │
        ▼
- preprocessor.py
+preprocessor.py
        │
        ├───────────────┐
        ▼               ▼
  tabular.py      sequential.py
        │               │
        ▼               ▼
-Random Forest    LSTM / TCN / Transformer
+Random Forest   LSTM / TCN / Transformer
 ```
 
 **`loader.py`** loads the raw text files into Pandas DataFrames and assigns the appropriate feature columns.
@@ -210,16 +267,19 @@ engine + cycle + engineered features
              one row
                 │
                 ▼
-         Random Forest
+          Random Forest
+```
 
-
+```text
 Sequential:
 
 engine history
+
 [t-n, ..., t-2, t-1, t]
+
                 │
                 ▼
-        sequence / tensor
+          sequence / tensor
                 │
                 ▼
        LSTM / TCN / Transformer
@@ -239,7 +299,7 @@ The API is containerized with Docker to provide a reproducible deployment enviro
 
 The dashboard is a static HTML/CSS/JavaScript application that communicates directly with the FastAPI service — it has no backend of its own.
 
-It lets a user pick a C-MAPSS dataset and one or more models, then runs evaluation against real test-set engines (bundled as static JSON under `dashboard/data/`), comparing predicted RUL against ground truth for each unit. Results are shown as both a per-model summary (RMSE, MAE, NASA Score, count of RUL overestimates) and a per-unit detail table, with overestimated predictions flagged — since overestimating remaining life is the more operationally risky error direction.
+It lets a user pick a C-MAPSS dataset and one or more models, then runs evaluation against real test-set engines (bundled as static JSON under `dashboard/data/`), comparing predicted RUL against ground truth for each unit. An optional policy simulation mode applies a configurable safety factor to each prediction and flags any engine falling below a critical RUL threshold, recomputing all metrics live without additional API calls. Results are shown as both a per-model summary (RMSE, MAE, NASA Score, count of RUL overestimates) and a per-unit detail table, with overestimated predictions flagged — since overestimating remaining life is the more operationally risky error direction.
 
 ## Models
 
@@ -269,35 +329,50 @@ Unlike recurrent models, the Transformer can process sequence elements in parall
 
 ## Results
 
-Model performance is evaluated using:
+Model performance is evaluated using the following metrics:
 
-Three standardized ML regression metrics:
+Three standard ML regression metrics:
+
 * **RMSE** — Root Mean Squared Error
 * **MAE** — Mean Absolute Error
 * **R²** — Coefficient of Determination
 
-One system specific metric:
-* **NASA Score** — An asymmetric scoring function that penalizes late RUL predictions differently from early predictions. The importance of this is highlighted earlier: an early RUL prediction (i.e., declaring an engine has less life in it than it actually does) likely means scheduling or planning maintenance prior to necessary. This is inefficient at worst, and in some cases actually preferrable. Conversely, overestimating an engine's lifespan consistently means a higher risk of accumulated degredation and failure. 
+One system-specific metric:
 
-| Dataset | Model           | RMSE ↓ | MAE ↓ | R² ↑  | NASA Score ↓ |
-|---------|-----------------|--------:|-------:|------:|-------------:|
-| FD001   | Random Forest   | 18.00   | 12.94  | 0.8125 | 746.34       |
-| FD001   | LSTM            | 16.23   | 12.43  | 0.8475 | 456.55       |
-| FD001   | TCN             | 17.65   | 13.67  | 0.8196 | 598.17       |
-| FD001   | Transformer     | 17.14   | 12.48  | 0.8298 | 396.87       |
-| FD002   | Random Forest   | 32.06   | 22.93  | 0.6447 | 49,123.33    |
-| FD002   | LSTM            | 29.04   | 19.00  | 0.7043 | 36,498.70    |
-| FD002   | TCN             | 28.81   | 19.42  | 0.7092 | 15,157.72    |
-| FD002   | Transformer     | 26.35   | 17.97  | 0.7566 | 6,679.50     |
-| FD003   | Random Forest   | 17.41   | 12.58  | 0.8230 | 857.62       |
-| FD003   | LSTM            | 15.31   | 11.30  | 0.8633 | 570.00       |
-| FD003   | TCN             | 19.19   | 14.94  | 0.7851 | 1,016.29     |
-| FD003   | Transformer     | 15.78   | 12.27  | 0.8547 | 393.89       |
-| FD004   | Random Forest   | 31.91   | 23.91  | 0.6574 | 14,267.97    |
-| FD004   | LSTM            | 25.76   | 18.51  | 0.7658 | 4,480.52     |
-| FD004   | TCN             | 28.38   | 21.09  | 0.7159 | 5,578.76     |
-| FD004   | Transformer     | 24.66   | 17.24  | 0.7854 | 3,900.96     |
+* **NASA Score** — An asymmetric scoring function that penalizes late RUL predictions differently from early predictions. Lower scores are better. The metric assigns a substantially larger penalty to predictions that overestimate remaining life than to predictions that underestimate it.
 
+This asymmetry is important for maintenance-oriented applications: an early RUL prediction (i.e., estimating that an engine has less life remaining than it actually does) could lead to maintenance being scheduled earlier than necessary. Conversely, overestimating an engine's remaining life can carry greater operational risk if degradation is more advanced than predicted.
+
+| Dataset | Model         | RMSE ↓ | MAE ↓ |   R² ↑ | NASA Score ↓ |
+| ------- | ------------- | -----: | ----: | -----: | -----------: |
+| FD001   | Random Forest |  18.00 | 12.94 | 0.8125 |       746.34 |
+| FD001   | LSTM          |  16.23 | 12.43 | 0.8475 |       456.55 |
+| FD001   | TCN           |  17.65 | 13.67 | 0.8196 |       598.17 |
+| FD001   | Transformer   |  17.14 | 12.48 | 0.8298 |       396.87 |
+| FD002   | Random Forest |  32.06 | 22.93 | 0.6447 |    49,123.33 |
+| FD002   | LSTM          |  29.04 | 19.00 | 0.7043 |    36,498.70 |
+| FD002   | TCN           |  28.81 | 19.42 | 0.7092 |    15,157.72 |
+| FD002   | Transformer   |  26.35 | 17.97 | 0.7566 |     6,679.50 |
+| FD003   | Random Forest |  17.41 | 12.58 | 0.8230 |       857.62 |
+| FD003   | LSTM          |  15.31 | 11.30 | 0.8633 |       570.00 |
+| FD003   | TCN           |  19.19 | 14.94 | 0.7851 |     1,016.29 |
+| FD003   | Transformer   |  15.78 | 12.27 | 0.8547 |       393.89 |
+| FD004   | Random Forest |  31.91 | 23.91 | 0.6574 |    14,267.97 |
+| FD004   | LSTM          |  25.76 | 18.51 | 0.7658 |     4,480.52 |
+| FD004   | TCN           |  28.38 | 21.09 | 0.7159 |     5,578.76 |
+| FD004   | Transformer   |  24.66 | 17.24 | 0.7854 |     3,900.96 |
+
+## Discussion
+
+From the above results, a few key observations stand out:
+
+* The Transformer achieves the lowest NASA Score across all four datasets. It also achieves the lowest RMSE on FD002 and FD004, while LSTM achieves the lowest RMSE on FD001 and FD003. This suggests that the Transformer performed particularly well under the asymmetric NASA evaluation used in this experiment.
+
+* The Transformer achieves its largest relative gain in RMSE performance on FD002 and FD004, which represent multiple operating regimes and failure modes. In this experiment, this suggests that self-attention may be particularly effective at capturing temporal relationships in the more heterogeneous datasets. On FD001 and FD003, LSTM and TCN remain competitive.
+
+* Despite having the weakest overall NASA Score, Random Forest remains competitive in terms of RMSE on FD001 and FD003: the simpler operating-regime datasets. This suggests that the engineered tabular representation can capture substantial degradation information when the underlying operating conditions are less heterogeneous.
+
+While these observations describe the behavior of the models under this experimental setup; they do not establish that one architecture is universally superior to the others.
 
 ## API Reference
 
@@ -307,7 +382,7 @@ Returns the current health status of the API.
 
 ### `POST /predict`
 
-Accepts an engine's most recent sensor cycles and returns an estimated RUL. Scoped to the sequential models (`lstm`, `tcn`, `transformer`) — Random Forest is not served by this endpoint, since it consumes a different (tabular, rolling-window-statistics) feature representation.
+Accepts an engine's most recent sensor cycles and returns an estimated RUL. Scoped to the sequential models (`lstm`, `tcn`, `transformer`) — Random Forest is not served by this endpoint, since it consumes a different feature representation, and because it was evaluated offline in this implementation.
 
 Example request:
 
@@ -338,7 +413,13 @@ The exact request schema and available fields are defined in `api/schemas.py`.
 ## Limitations & Future Work
 
 * RUL targets are clipped at 125 cycles, which simplifies the learning problem but limits predictions above this value.
-* C-MAPSS is a simulated dataset and does not represent the full complexity of real-world aircraft engine operation. Thus, the deployed API is intended as a portfolio demonstration rather than of a true aviation maintenance system.
+
+* C-MAPSS is a simulated dataset and does not represent the full complexity of real-world aircraft engine operation. Thus, the deployed API is intended as a portfolio demonstration rather than as a true aviation maintenance system.
+
+* All models were optimized using MSE loss, while the NASA Score applies an asymmetric evaluation function. A natural expansion would be to train models directly with an asymmetric loss inspired by the NASA scoring function and evaluate how optimizing for operational cost changes the resulting predictions.
+
+* Similarly, the mock policy implemented does not feed into ML. A future scope for this project could be to incorporate policy signals into a learning framework, allowing models to account for user-defined maintenance preferences.
+
 * Future work could include uncertainty estimation, additional degradation datasets, model ensembling, and evaluation on real-world data.
 
 ## Dataset Attribution
@@ -361,8 +442,7 @@ This project is licensed under the MIT License.
 
 ## Contact
 
-**[ Name ]**
+**Shikhar Davla**
 
-* GitHub: [your-github-profile]
-* LinkedIn: [your-linkedin-profile]
-* Portfolio: [your-portfolio-link]
+* GitHub: https://github.com/shikhardavla
+* LinkedIn: https://linkedin.com/in/shikhar-davla/

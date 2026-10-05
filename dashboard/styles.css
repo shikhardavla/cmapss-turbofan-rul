@@ -11,6 +11,7 @@
   --danger: #c1443c;
   --border: rgba(165, 184, 146, 0.35);
   --glow-amber: rgba(217, 154, 61, 0.45);
+  --glow-danger: rgba(193, 68, 60, 0.5);
   --font-display: "Oxanium", sans-serif;
   --font-mono: "JetBrains Mono", "Courier New", monospace;
 }
@@ -117,7 +118,7 @@ h2::before {
   gap: 1.5rem;
   align-items: flex-end;
   flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.15);
@@ -178,8 +179,10 @@ fieldset label {
 }
 
 /* Bracket-style checkbox: [ ] / [x] -- literal ASCII toggle instead of a
-   checkmark-in-a-box, reads much more like a terminal UI element. */
-fieldset input[type="checkbox"] {
+   checkmark-in-a-box, reads much more like a terminal UI element. Applied
+   via a shared class so it looks consistent whether the checkbox lives
+   inside a fieldset (model selection) or standalone (policy toggle). */
+.bracket-checkbox {
   appearance: none;
   width: 1.6em;
   height: 1.2em;
@@ -190,7 +193,7 @@ fieldset input[type="checkbox"] {
   position: relative;
 }
 
-fieldset input[type="checkbox"]::before {
+.bracket-checkbox::before {
   content: "[ ]";
   position: absolute;
   inset: 0;
@@ -199,10 +202,126 @@ fieldset input[type="checkbox"]::before {
   justify-content: center;
 }
 
-fieldset input[type="checkbox"]:checked::before {
+.bracket-checkbox:checked::before {
   content: "[x]";
   color: var(--amber-bright);
   text-shadow: 0 0 6px var(--glow-amber);
+}
+
+/* ---------- Policy panel ---------- */
+.policy-panel {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.policy-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  text-transform: none;
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-bottom: 0;
+}
+
+.policy-panel fieldset {
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  padding: 0.75rem 1rem 1rem;
+  transition: opacity 0.15s ease;
+}
+
+.policy-panel fieldset:disabled {
+  opacity: 0.4;
+}
+
+.policy-panel fieldset:disabled .slider-row,
+.policy-panel fieldset:disabled input[type="range"] {
+  cursor: not-allowed;
+}
+
+.slider-row {
+  margin-bottom: 0.9rem;
+}
+
+.slider-row:last-of-type {
+  margin-bottom: 0.4rem;
+}
+
+.slider-row label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text);
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.slider-value {
+  color: var(--amber-bright);
+  font-weight: 700;
+}
+
+.policy-disclaimer {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 0.5rem 0 0;
+}
+
+/* Custom range slider, matching the sharp-corner / amber-glow language
+   used elsewhere. Webkit and Moz need separate pseudo-elements. */
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: 1.2rem;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--border);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  background: var(--amber);
+  border: 1px solid var(--amber-bright);
+  border-radius: 0;
+  box-shadow: 0 0 6px var(--glow-amber);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: var(--border);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--amber);
+  border: 1px solid var(--amber-bright);
+  border-radius: 0;
+  box-shadow: 0 0 6px var(--glow-amber);
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: var(--text-dim);
+  border-color: var(--text-dim);
+  box-shadow: none;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  background: var(--text-dim);
+  border-color: var(--text-dim);
+  box-shadow: none;
 }
 
 /* ---------- Button ---------- */
@@ -245,6 +364,7 @@ button:disabled {
   color: var(--text-dim);
   font-size: 0.85rem;
   min-height: 1.2em;
+  margin-top: 0.75rem;
 }
 
 #status:not(:empty)::before {
@@ -295,6 +415,12 @@ th:nth-child(2), td:nth-child(2) {
   text-align: left;
 }
 
+/* Policy Recommendation column reads as a status cell, not a number --
+   left-align and don't inherit the numeric right-alignment above. */
+th.policy-col, td.policy-col {
+  text-align: left;
+}
+
 tbody tr:hover {
   background: rgba(165, 184, 146, 0.06);
 }
@@ -309,4 +435,24 @@ tr.overestimated {
 
 tr.overestimated:hover {
   background-color: rgba(193, 68, 60, 0.28);
+}
+
+/* ---------- Policy recommendation status dots ---------- */
+.status-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+.status-dot.critical {
+  background: var(--danger);
+  box-shadow: 0 0 6px var(--glow-danger);
+}
+
+.status-dot.healthy {
+  background: var(--green);
+  box-shadow: 0 0 4px rgba(165, 184, 146, 0.4);
 }
